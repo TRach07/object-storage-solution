@@ -2,11 +2,33 @@ package storage
 
 import (
 	"data-storage/src/storage"
-
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
+
+func GetObject(ctx *gin.Context) {
+	bucketName := ctx.Param("name")
+	objectName := ctx.Param("objectName")
+
+	object, err := storage.GetObject(bucketName, objectName)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	defer object.Close()
+
+	// Stream the object content
+	ctx.Header("Content-Type", "application/octet-stream")
+	ctx.Header("Content-Disposition", "attachment; filename="+objectName)
+
+	_, err = io.Copy(ctx.Writer, object)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+}
 
 func DeleteObject(ctx *gin.Context) {
 	bucketName := ctx.Param("name")
